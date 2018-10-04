@@ -145,7 +145,7 @@ func spellcheckFile(file string, model *fuzzy.Model, batch, skipnames bool) ([]E
 	if !batch {
 		defer timeTrack(time.Now(), "spellcheckFile")
 	}
-	fileContents, err := ioutil.ReadFile("test")
+	fileContents, err := ioutil.ReadFile(file)
 	if err != nil {
 		return []ErrorCounts{}, err
 	}
@@ -186,7 +186,7 @@ func trainModel(dict string, output string) {
 	defer timeTrack(time.Now(), "trainModel")
 	model := fuzzy.NewModel()
 	model.SetThreshold(1)
-	model.SetDepth(3)
+	model.SetDepth(2)
 
 	dictionary, err := ioutil.ReadFile(dict)
 	if err != nil {
