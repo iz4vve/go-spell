@@ -156,7 +156,7 @@ func spellcheckFile(file string, model *fuzzy.Model, batch, skipnames bool) ([]E
 
 		word = strings.Trim(word, ".,:;'") // removes trailing and starting chars
 
-		if strings.ToTitle(word) == word && skipnames {
+		if strings.Title(word) == word && skipnames {
 			continue
 		}
 
