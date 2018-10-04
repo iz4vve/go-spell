@@ -31,8 +31,8 @@ func main() {
 
 	usage := `go-spell.
 	Usage:
-		go-spell --model-path=<model> FILE [--target=<target>][--threshold=<threshold>]
-		go-spell batch --model-path=<model> DIRECTORY [--target=<target>][--threshold=<threshold>]
+		go-spell --model-path=<model> FILE [--target=<target>][--threshold=<threshold>][--skip-names][--tag-char=TAG]
+		go-spell batch --model-path=<model> DIRECTORY [--target=<target>][--threshold=<threshold>][--skip-names][--tag-char=TAG]
 		go-spell train --dictionary=<dictionary> --model-output=<modeloutput>
 		go-spell -h | --help
 
@@ -40,9 +40,11 @@ func main() {
 		-h --help                     	  Show this screen.
 		--model-path=<model>			  Path to an existing model.
 		--dictionary=<dictionary>		  Path to words list to use for training.
-		--target=<target>				  Target directory for results [default: results.json]
-		--threshold=<threshold>			  Minimum count of error occurrences to be reported [default: 1]
-		--model-output=<modeloutput>	  Path to output model [default: wordlist.txt]`
+		--target=<target>				  Target directory for results [default: results.json].
+		--threshold=<threshold>			  Minimum count of error occurrences to be reported [default: 1].
+		--model-output=<modeloutput>	  Path to output model [default: wordlist.txt].
+		--skip-names					  Whether to skip people's names (words that start with a capital letter).
+		--tag-char=TAG					  Character(s) introducing tags.`
 
 	arguments, _ := docopt.ParseDoc(usage)
 
@@ -58,6 +60,12 @@ func main() {
 		return
 	}
 
+	skipNames, err := arguments.Bool("--skip-names")
+	if err != nil {
+		fmt.Println("Invalid --skip-names value. Setting default to false.")
+		skipNames = false
+	}
+
 	// DIRECTORY
 	if batch, _ := arguments.Bool("batch"); batch {
 		directory, err := arguments.String("DIRECTORY")
@@ -66,7 +74,7 @@ func main() {
 			log.Fatal("path does not exist")
 		}
 		model := loadModel(arguments)
-		errors, errs := spellcheckDir(directory, model)
+		errors, errs := spellcheckDir(directory, model, skipNames)
 		if len(errs) != 0 {
 			fmt.Printf("Errors occurred: %s\n", errs)
 		}
@@ -83,7 +91,7 @@ func main() {
 		log.Fatal("path does not exist")
 	}
 	model := loadModel(arguments)
-	errors, err := spellcheckFile(file, model, false)
+	errors, err := spellcheckFile(file, model, false, skipNames)
 	failOnError(err)
 	saveResults(errors, arguments)
 }
@@ -106,7 +114,7 @@ func loadModel(arguments docopt.Opts) *fuzzy.Model {
 
 // spellcheckDir runs spellchecking on all files that match the glob
 // pattern specified by the user in the command line.
-func spellcheckDir(directory string, model *fuzzy.Model) ([]ErrorCounts, []error) {
+func spellcheckDir(directory string, model *fuzzy.Model, skipnames bool) ([]ErrorCounts, []error) {
 	files, err := filepath.Glob(directory)
 	failOnError(err)
 	fmt.Printf("Running batch job on %d files\n", len(files))
@@ -116,7 +124,7 @@ func spellcheckDir(directory string, model *fuzzy.Model) ([]ErrorCounts, []error
 
 	bar := progressbar.New(len(files))
 	for _, file := range files {
-		errors, err := spellcheckFile(file, model, true)
+		errors, err := spellcheckFile(file, model, true, skipnames)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -133,7 +141,7 @@ func spellcheckDir(directory string, model *fuzzy.Model) ([]ErrorCounts, []error
 // spellcheckFile runs spellcheck on a single file and saves the results
 // as a JSON array to a file.
 // The default file name for the results is 'results.json'
-func spellcheckFile(file string, model *fuzzy.Model, batch bool) ([]ErrorCounts, error) {
+func spellcheckFile(file string, model *fuzzy.Model, batch, skipnames bool) ([]ErrorCounts, error) {
 	if !batch {
 		defer timeTrack(time.Now(), "spellcheckFile")
 	}
@@ -145,6 +153,13 @@ func spellcheckFile(file string, model *fuzzy.Model, batch bool) ([]ErrorCounts,
 	errors := errorMap{}
 
 	for _, word := range strings.Split(sentences, " ") {
+
+		word = strings.Trim(word, ".,:;'") // removes trailing and starting chars
+
+		if strings.ToTitle(word) == word && skipnames {
+			continue
+		}
+
 		checked := model.SpellCheck(word)
 		if len(checked) == 0 {
 			continue
