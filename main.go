@@ -150,6 +150,7 @@ func spellcheckFile(file string, model *fuzzy.Model, batch, skipnames bool) ([]E
 		return []ErrorCounts{}, err
 	}
 	sentences := strings.Replace(string(fileContents), "\n", " ", -1)
+	sentences = strings.Replace(sentences, "\r", "", -1)
 	errors := errorMap{}
 
 	for _, word := range strings.Split(sentences, " ") {
