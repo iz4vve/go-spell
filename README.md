@@ -4,7 +4,7 @@ Spellchecker for Go to get typos from single files or from file pattern (using g
 ## Build / install the binary
 
 ```
-$ git clone https://github.optum.com/pmascolo/go-spell.git
+$ git clone https://github.com/iz4vve/go-spell.git
 $ cd go-spell
 $ go build -o go-spell .
 ```
